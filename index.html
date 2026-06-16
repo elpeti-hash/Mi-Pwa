@@ -545,10 +545,25 @@ Total de atenciones: ${h.length}
    texto += `${i+1}. ${a.paciente||"Sin nombre"}\n`;
  });
 
- if(navigator.share){
-   await navigator.share({title:"Resumen Cobertura",text:texto});
+ if(typeof navigator.share==="function"){
+
+   setTimeout(async ()=>{
+
+      try{
+         await navigator.share({
+            title:"Resumen Cobertura",
+            text:texto
+         });
+      }catch(e){
+         console.log(e);
+      }
+
+   },100);
+
  }else{
+
    alert(texto);
+
  }
 }
 

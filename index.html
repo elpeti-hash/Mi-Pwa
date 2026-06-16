@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icono-192.png">
+
+<meta name="theme-color" content="#c1121f">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Atenciones CRA">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+<title>Atenciones CRA</title>
+
+<style>
+body{font-family:Arial,sans-serif;max-width:900px;margin:auto;padding:15px}
+input,textarea,select,button{width:100%;font-size:18px;padding:10px;margin:6px 0;box-sizing:border-box}
+button{min-height:50px}
+#mensaje{padding:10px;margin:10px 0;border:1px solid #ccc}
+@media (prefers-color-scheme: dark){
+ body{background:#111;color:#eee}
+ input,textarea,select,button{background:#222;color:#eee;border:1px solid #555}
+}
+</style>
+</head>
+
+<body>
+
+<h2>📋 Atenciones CRA</h2>
+
+<div id="mensaje">Listo para usar sin conexión.</div>
+
+<div style="border:1px solid #ccc;padding:10px;margin-bottom:15px">
+<h3>Configuración de Cobertura</h3>
+
+<label>Cobertura:</label>
+<input type="text" id="cfgCobertura">
+
+<label>Voluntario:</label>
+<input type="text" id="cfgVoluntario">
+
+<label>Fecha:</label>
+<input type="date" id="cfgFecha">
+
+<label>Turno:</label>
+<select id="cfgTurno">
+  <option>Mañana</option>
+  <option>Tarde</option>
+  <option>Noche</option>
+</select>
+
+<button type="button" onclick="guardarConfiguracion()">
+Guardar Configuración
+</button>
+
+</div>
+
+<div id="resumen">
+<b>Atenciones registradas:</b> <span id="contador">0</span><br>
+<b>Última atención:</b> <span id="ultima">Ninguna</span>
+</div>
+
+<div id="modoEdicion" style="display:none;background:#fff3cd;padding:10px;margin:10px 0;border:1px solid #ffe69c">
+✏️ Editando atención
+<button type="button" onclick="cancelarEdicion()">Cancelar edición</button>
+</div>
+
+<hr>
+
+<form id="formAuxilios">
+
+<label>Fecha de Atención:</label>
+<input type="datetime-local" name="fechaHora" id="fechaHora">
+
+<label>Paciente:</label>
+<input type="text" name="paciente">
+
+<label>Fecha de Nacimiento:</label>
+<input type="date" name="fechaNacimiento">
+
+<label>Edad:</label>
+<input type="text" id="edad" name="edad" readonly>
+
+<label>Documento:</label>
+<input type="text" name="documento">
+
+<label>Teléfono:</label>
+<input type="tel" name="telefono">
+
+<label>Motivo:</label>
+<textarea name="motivo"></textarea>
+
+<label>Tratamiento:</label>
+<textarea name="tratamiento"></textarea>
+
+<label>TA Sistólica:</label>
+<input type="text" name="TA_sistolica">
+
+<label>TA Diastólica:</label>
+<input type="text" name="TA_diastolica">
+
+<label>Frecuencia Cardíaca:</label>
+<input type="text" name="frecuencia">
+
+<label>Temperatura:</label>
+<input type="text" name="temperatura">
+
+<label>Observaciones:</label>
+<textarea name="observaciones"></textarea>
+
+<button type="submit">Guardar Atención</button>
+<button type="button" onclick="nuevoFormulario()">Nuevo Formulario</button>
+</form>
+
+<h3>Historial</h3>
+<ul id="historial"></ul>
+
+<button onclick="menuCompartirExportar()">
+📤 Compartir / Exportar
+</button>
+
+<button onclick="document.getElementById('importar').click()">
+Recuperar Cobertura
+</button>
+
+<button onclick="borrarHistorial()">
+Borrar Historial
+</button>
+
+
+<input type="file" id="importar" accept=".json" style="display:none">
+
+<script>
+
+let editandoIndice = -1;
+let hayCambiosSinGuardar = false;
+
+function msg(t){
+ const m=document.getElementById("mensaje");
+ m.textContent=t;
+
+ setTimeout(()=>{
+   if(m.textContent===t){
+      m.textContent="Listo para usar sin conexión.";
+   }
+ },3000);
+}
+
+document.getElementById("fechaHora").value =
+new Date(Date.now()-new Date().getTimezoneOffset()*60000)
+.toISOString().slice(0,16);
+
+function guardarConfiguracion(){
+
+ let cfg={
+   cobertura:document.getElementById("cfgCobertura").value,
+   voluntario:document.getElementById("cfgVoluntario").value,
+   fecha:document.getElementById("cfgFecha").value,
+   turno:document.getElementById("cfgTurno").value
+ };
+
+ localStorage.setItem(
+   "configuracionCRA",
+   JSON.stringify(cfg)
+ );
+
+ msg("Configuración guardada.");
+}
+
+function cargarConfiguracion(){
+
+ let cfg=JSON.parse(
+   localStorage.getItem("configuracionCRA")||"{}"
+ );
+
+ if(cfg.cobertura)
+   document.getElementById("cfgCobertura").value=cfg.cobertura;
+
+ if(cfg.voluntario)
+   document.getElementById("cfgVoluntario").value=cfg.voluntario;
+
+ if(cfg.fecha)
+   document.getElementById("cfgFecha").value=cfg.fecha;
+
+ if(cfg.turno)
+   document.getElementById("cfgTurno").value=cfg.turno;
+}
+
+function actualizarResumen(){
+
+ let h=JSON.parse(
+   localStorage.getItem("atenciones")||"[]"
+ );
+
+ document.getElementById("contador").textContent=h.length;
+
+ if(h.length){
+
+   let u=h[h.length-1];
+
+   document.getElementById("ultima").textContent=
+   (u.paciente||"Sin nombre")+
+   " - "+
+   (u.fechaHora||"");
+ }
+ else{
+   document.getElementById("ultima").textContent="Ninguna";
+ }
+}
+
+function mostrarHistorial(){
+ let h=JSON.parse(localStorage.getItem("atenciones")||"[]");
+ let ul=document.getElementById("historial");
+ ul.innerHTML="";
+
+ h.forEach((x,i)=>{
+   let li=document.createElement("li");
+  li.innerHTML=
+(x.fechaHora||"Sin fecha")+
+" - "+
+(x.paciente||"Sin nombre")+
+"<br><small>Motivo: "+
+(x.motivo||"Sin dato")+
+"</small>";
+
+   let editar=document.createElement("button");
+   editar.textContent="Editar";
+   editar.onclick=()=>editarAtencion(i);
+   li.appendChild(editar);
+
+   let b=document.createElement("button");
+   b.textContent="Eliminar";
+   b.onclick=()=>{
+   h.splice(i,1);
+
+   localStorage.setItem(
+      "atenciones",
+      JSON.stringify(h)
+   );
+
+   mostrarHistorial();
+   actualizarResumen();
+};
+
+   li.appendChild(b);
+   ul.appendChild(li);
+ });
+}
+
+document.getElementById("formAuxilios").addEventListener("submit",e=>{
+ e.preventDefault();
+
+ let datos=new FormData(e.target);
+ let obj={};
+
+ for(let [k,v] of datos.entries()) obj[k]=v;
+ let cfg=JSON.parse(
+ localStorage.getItem("configuracionCRA")||"{}"
+);
+
+obj.cobertura=cfg.cobertura||"";
+obj.voluntario=cfg.voluntario||"";
+obj.fecha=cfg.fecha||"";
+obj.turno=cfg.turno||"";
+ let h=JSON.parse(localStorage.getItem("atenciones")||"[]");
+ if(editandoIndice>=0){
+   h[editandoIndice]=obj;
+   editandoIndice=-1;
+   document.getElementById("modoEdicion").style.display="none";
+ }else{
+   h.push(obj);
+ }
+
+ localStorage.setItem("atenciones",JSON.stringify(h));
+
+mostrarHistorial();
+actualizarResumen();
+ msg("Atención guardada correctamente.");
+
+ e.target.reset();
+
+ document.getElementById("fechaHora").value =
+ new Date(Date.now()-new Date().getTimezoneOffset()*60000)
+ .toISOString().slice(0,16);
+});
+
+function nuevoFormulario(){
+
+ if(editandoIndice>=0){
+
+   if(!confirm(
+      "Está editando una atención.\n\nLos cambios no guardados se perderán.\n\n¿Desea continuar?"
+   )){
+      return;
+   }
+
+   editandoIndice=-1;
+
+   document.getElementById(
+      "modoEdicion"
+   ).style.display="none";
+ }
+
+ document.getElementById("formAuxilios").reset();
+
+ document.getElementById("fechaHora").value =
+ new Date(
+   Date.now()-new Date().getTimezoneOffset()*60000
+ ).toISOString().slice(0,16);
+}
+
+function nombreCoberturaJSON(){
+
+ let cfg=JSON.parse(
+   localStorage.getItem("configuracionCRA")||"{}"
+ );
+
+ let cobertura=
+   (cfg.cobertura||"Cobertura")
+   .replace(/\s+/g,"_");
+
+ let voluntario=
+   (cfg.voluntario||"Voluntario")
+   .replace(/\s+/g,"_");
+
+ let fecha=cfg.fecha||new Date().toISOString().slice(0,10);
+
+ fecha=fecha.replace(/-/g,"");
+
+ let turno="X";
+
+ if(cfg.turno==="Mañana") turno="M";
+ else if(cfg.turno==="Tarde") turno="T";
+ else if(cfg.turno==="Noche") turno="N";
+
+ return `CRA_${cobertura}_${voluntario}_${fecha}_${turno}.json`;
+}
+
+function exportarJSON(){
+ let datos=localStorage.getItem("atenciones")||"[]";
+
+ let blob=new Blob([datos],{type:"application/json"});
+ let a=document.createElement("a");
+
+ a.href=URL.createObjectURL(blob);
+ a.download=nombreCoberturaJSON();
+ a.click();
+
+ msg("Cobertura guardada.");
+}
+
+function exportarCSV(){
+
+ let datos=JSON.parse(localStorage.getItem("atenciones")||"[]");
+
+ if(!datos.length){
+   msg("No hay registros.");
+   return;
+ }
+
+ let campos=Object.keys(datos[0]);
+
+ let csv=campos.join(",")+"\n";
+
+ datos.forEach(f=>{
+   csv+=campos.map(c=>'"'+String(f[c]||"").replace(/"/g,'""')+'"').join(",")+"\n";
+ });
+
+ let blob=new Blob([csv],{type:"text/csv"});
+
+ let a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download=
+nombreCoberturaJSON()
+.replace(".json",".csv");
+ a.click();
+
+ msg("Planilla exportada.");
+}
+
+document.getElementById("importar").addEventListener("change",e=>{
+
+ let archivo=e.target.files[0];
+ if(!archivo) return;
+
+ let lector=new FileReader();
+
+ lector.onload=ev=>{
+   try{
+
+      let importados=
+      JSON.parse(ev.target.result);
+
+      if(!Array.isArray(importados)){
+         throw new Error("Formato inválido");
+      }
+
+      let reemplazar=confirm(
+         "Aceptar = Reemplazar historial\nCancelar = Agregar al historial existente"
+      );
+
+      if(reemplazar){
+
+         localStorage.setItem(
+            "atenciones",
+            JSON.stringify(importados)
+         );
+
+         msg("Cobertura recuperada.");
+
+      }else{
+
+         let actuales=JSON.parse(
+            localStorage.getItem("atenciones")||"[]"
+         );
+
+         let combinado=
+         actuales.concat(importados);
+
+         localStorage.setItem(
+            "atenciones",
+            JSON.stringify(combinado)
+         );
+
+         msg("Cobertura incorporada al historial.");
+      }
+
+      mostrarHistorial();
+      actualizarResumen();
+
+   }catch(err){
+
+      msg("Archivo inválido.");
+   }
+ };
+
+ lector.readAsText(archivo);
+});
+
+
+function borrarHistorial(){
+if(!confirm("¿Borrar todo el historial?")) return;
+ localStorage.removeItem("atenciones");
+
+ mostrarHistorial();
+ actualizarResumen();
+
+ msg("Historial borrado.");
+}
+document.querySelector(
+ 'input[name="fechaNacimiento"]'
+).addEventListener("change",function(){
+
+ if(!this.value){
+   document.getElementById("edad").value="";
+   return;
+ }
+
+ let nacimiento=new Date(this.value);
+ let hoy=new Date();
+
+ let edad=
+   hoy.getFullYear()-
+   nacimiento.getFullYear();
+
+ let m=
+   hoy.getMonth()-
+   nacimiento.getMonth();
+
+ if(
+   m<0 ||
+   (m===0 && hoy.getDate()<nacimiento.getDate())
+ ){
+   edad--;
+ }
+
+ document.getElementById("edad").value=
+   edad+" años";
+});
+
+
+function editarAtencion(indice){
+
+ let h=JSON.parse(
+   localStorage.getItem("atenciones")||"[]"
+ );
+
+ let a=h[indice];
+
+ let f=document.getElementById("formAuxilios");
+
+ Object.keys(a).forEach(k=>{
+
+   let campo=f.elements[k];
+
+   if(campo){
+      campo.value=a[k];
+   }
+
+ });
+
+ let fechaNac =
+ document.querySelector(
+   'input[name="fechaNacimiento"]'
+ );
+
+ fechaNac.dispatchEvent(
+   new Event("change")
+ );
+
+ editandoIndice=indice;
+
+ document.getElementById(
+   "modoEdicion"
+ ).style.display="block";
+}
+
+function cancelarEdicion(){
+ editandoIndice=-1;
+ document.getElementById("modoEdicion").style.display="none";
+ nuevoFormulario();
+}
+
+async function compartirResumen(){
+
+ let h=JSON.parse(localStorage.getItem("atenciones")||"[]");
+ let cfg=JSON.parse(localStorage.getItem("configuracionCRA")||"{}");
+
+ let texto=`📋 Atenciones CRA
+
+Cobertura: ${cfg.cobertura||""}
+Voluntario: ${cfg.voluntario||""}
+Fecha: ${cfg.fecha||""}
+Turno: ${cfg.turno||""}
+
+Total de atenciones: ${h.length}
+
+`;
+
+ h.forEach((a,i)=>{
+   texto += `${i+1}. ${a.paciente||"Sin nombre"}\n`;
+ });
+
+ if(navigator.share){
+   await navigator.share({title:"Resumen Cobertura",text:texto});
+ }else{
+   alert(texto);
+ }
+}
+
+async function compartirArchivoJSON(){
+
+ let datos=localStorage.getItem("atenciones")||"[]";
+
+ let archivo=new File(
+   [datos],
+   nombreCoberturaJSON(),
+   {type:"application/json"}
+ );
+
+ try{
+
+   if(
+      navigator.canShare &&
+      navigator.canShare({files:[archivo]})
+   ){
+
+      await navigator.share({
+         files:[archivo],
+         title:"Cobertura CRA"
+      });
+
+      msg("Cobertura compartida.");
+
+   }else{
+
+      exportarJSON();
+
+   }
+
+ }catch(err){
+
+   console.error(err);
+
+   exportarJSON();
+
+ }
+}
+
+
+function menuCompartirExportar(){
+
+ let opcion=prompt(`Compartir / Exportar
+
+1 = Compartir Resumen
+2 = Compartir Cobertura
+3 = Guardar Cobertura
+4 = Exportar Planilla`);
+
+ if(opcion==="1") compartirResumen();
+ else if(opcion==="2") compartirArchivoJSON();
+ else if(opcion==="3") exportarJSON();
+ else if(opcion==="4") exportarCSV();
+}
+
+cargarConfiguracion();
+mostrarHistorial();
+actualizarResumen();
+
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+
+  window.addEventListener("load", () => {
+
+    navigator.serviceWorker
+      .register("./service-worker.js")
+      .then(() => console.log("SW registrado"))
+      .catch(err => console.error(err));
+
+  });
+
+}
+</script>
+</body>
+</html>

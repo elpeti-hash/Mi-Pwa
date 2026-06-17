@@ -30,12 +30,12 @@ button{min-height:50px}
 
 <body>
 
-<h2>📋 Atenciones CRA</h2>
+<h2>📋 Atenciones Coberturas CRA</h2>
 
-<div id="mensaje">Listo para usar sin conexión.</div>
+<div id="mensaje"></div>
 
 <div style="border:1px solid #ccc;padding:10px;margin-bottom:15px">
-<h3>Configuración de Cobertura</h3>
+<h3>Datos de Cobertura</h3>
 
 <label>Cobertura:</label>
 <input type="text" id="cfgCobertura">
@@ -54,7 +54,7 @@ button{min-height:50px}
 </select>
 
 <button type="button" onclick="guardarConfiguracion()">
-Guardar Configuración
+Guardar Datos de Cobertura
 </button>
 
 </div>
@@ -86,7 +86,7 @@ Guardar Configuración
 <input type="text" id="edad" name="edad" readonly>
 
 <label>Documento:</label>
-<input type="text" name="documento">
+<input type="number" name="documento">
 
 <label>Teléfono:</label>
 <input type="tel" name="telefono">
@@ -98,16 +98,16 @@ Guardar Configuración
 <textarea name="tratamiento"></textarea>
 
 <label>TA Sistólica:</label>
-<input type="text" name="TA_sistolica">
+<input type="number" name="TA_sistolica">
 
 <label>TA Diastólica:</label>
-<input type="text" name="TA_diastolica">
+<input type="number" name="TA_diastolica">
 
 <label>Frecuencia Cardíaca:</label>
-<input type="text" name="frecuencia">
+<input type="number" name="frecuencia">
 
 <label>Temperatura:</label>
-<input type="text" name="temperatura">
+<input type="number" name="temperatura" step="0.1">
 
 <label>Observaciones:</label>
 <textarea name="observaciones"></textarea>
@@ -131,6 +131,9 @@ Recuperar Cobertura
 Borrar Historial
 </button>
 
+<button onclick="nuevaCobertura()">
+🗑 Nueva Cobertura
+</button>
 
 <input type="file" id="importar" accept=".json" style="display:none">
 
@@ -145,7 +148,7 @@ function msg(t){
 
  setTimeout(()=>{
    if(m.textContent===t){
-      m.textContent="Listo para usar sin conexión.";
+      m.textContent="";
    }
  },3000);
 }
@@ -450,6 +453,28 @@ if(!confirm("¿Borrar todo el historial?")) return;
  actualizarResumen();
 
  msg("Historial borrado.");
+}
+
+function nuevaCobertura(){
+
+ if(!confirm(
+   "¿Desea comenzar una nueva cobertura?\n\nSe borrarán los datos de cobertura y el historial de atenciones.\n\nSe recomienda guardar la cobertura antes de continuar."
+ )){
+   return;
+ }
+
+ localStorage.removeItem("atenciones");
+ localStorage.removeItem("configuracionCRA");
+
+ mostrarHistorial();
+ actualizarResumen();
+
+ document.getElementById("cfgCobertura").value="";
+ document.getElementById("cfgVoluntario").value="";
+ document.getElementById("cfgFecha").value="";
+
+ msg("Nueva cobertura iniciada.");
+
 }
 document.querySelector(
  'input[name="fechaNacimiento"]'

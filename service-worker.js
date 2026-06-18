@@ -1,4 +1,4 @@
-const CACHE_NAME = "cra-v2";
+const CACHE_NAME = "cra-v5";
 
 const FILES_TO_CACHE = [
   "./",
